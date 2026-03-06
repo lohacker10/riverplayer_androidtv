@@ -171,6 +171,7 @@ internal class RiverPlayer(
     private val customDefaultLoadControl: CustomDefaultLoadControl =
         customDefaultLoadControl ?: CustomDefaultLoadControl()
     private var lastSendBufferedPosition = 0L
+    private var mediaSessionM3: MediaSession? = null
 
     init {
         val loadBuilder = DefaultLoadControl.Builder()
@@ -396,8 +397,9 @@ internal class RiverPlayer(
                 setUseStopAction(false)
             }
 
-            setupMediaSession(context)?.let {
-                setMediaSessionToken(it.sessionToken)
+            setupMediaSession(context)
+            mediaSessionM3?.let {
+                setMediaSessionToken(it.token)
             }
         }
 
@@ -595,17 +597,16 @@ internal class RiverPlayer(
         }
     }
 
-    @Suppress("DEPRECATION")
     private fun setAudioAttributes(exoPlayer: ExoPlayer?, mixWithOthers: Boolean) {
-        val audioComponent = exoPlayer?.audioComponent ?: return
+        exoPlayer ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            audioComponent.setAudioAttributes(
-                AudioAttributes.Builder().setContentType(C.CONTENT_TYPE_MOVIE).build(),
+            exoPlayer.setAudioAttributes(
+                AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
                 !mixWithOthers
             )
         } else {
-            audioComponent.setAudioAttributes(
-                AudioAttributes.Builder().setContentType(C.CONTENT_TYPE_MUSIC).build(),
+            exoPlayer.setAudioAttributes(
+                AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
                 !mixWithOthers
             )
         }
@@ -706,13 +707,11 @@ internal class RiverPlayer(
     @SuppressLint("InlinedApi")
     fun setupMediaSession(context: Context?): MediaSessionCompat? {
         mediaSession?.release()
+        mediaSessionM3?.release()
         context?.let {
-
             val mediaButtonIntent = Intent(Intent.ACTION_MEDIA_BUTTON)
             val pendingIntent = PendingIntent.getBroadcast(
-                context,
-                0, mediaButtonIntent,
-                PendingIntent.FLAG_IMMUTABLE
+                context, 0, mediaButtonIntent, PendingIntent.FLAG_IMMUTABLE
             )
             val mediaSession = MediaSessionCompat(context, TAG, null, pendingIntent)
             mediaSession.setCallback(object : MediaSessionCompat.Callback() {
@@ -724,11 +723,10 @@ internal class RiverPlayer(
             mediaSession.isActive = true
             val sessionId = System.currentTimeMillis()
             exoPlayer?.let { player ->
-                MediaSession.Builder(
-                    context,
-                    player
-                ).setId(sessionId.toString()).build()
-            }?.setPlayer(exoPlayer)
+                mediaSessionM3 = MediaSession.Builder(context, player)
+                    .setId(sessionId.toString())
+                    .build()
+            }
             this.mediaSession = mediaSession
             return mediaSession
         }
