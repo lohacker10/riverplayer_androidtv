@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit
 internal object DataSourceUtils {
     private const val USER_AGENT = "User-Agent"
     private const val USER_AGENT_PROPERTY = "http.agent"
-    private const val TIMEOUT_MS = 15_000L
+    private const val TIMEOUT_MS = 8_000L
 
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
