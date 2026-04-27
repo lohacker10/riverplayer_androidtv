@@ -2,11 +2,19 @@ package ir.r3r.river_player
 
 import android.net.Uri
 import androidx.media3.datasource.DataSource
-import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.okhttp.OkHttpDataSource
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 
 internal object DataSourceUtils {
     private const val USER_AGENT = "User-Agent"
     private const val USER_AGENT_PROPERTY = "http.agent"
+    private const val TIMEOUT_MS = 15_000L
+
+    private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .readTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .build()
 
     @JvmStatic
     fun getUserAgent(headers: Map<String, String>?): String? {
@@ -25,21 +33,17 @@ internal object DataSourceUtils {
         userAgent: String?,
         headers: Map<String, String>?
     ): DataSource.Factory {
-        val dataSourceFactory: DataSource.Factory = DefaultHttpDataSource.Factory()
+        val factory = OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent(userAgent)
             .setAllowCrossProtocolRedirects(true)
-            .setConnectTimeoutMs(DefaultHttpDataSource.DEFAULT_CONNECT_TIMEOUT_MILLIS)
-            .setReadTimeoutMs(DefaultHttpDataSource.DEFAULT_READ_TIMEOUT_MILLIS)
         if (headers != null) {
             val notNullHeaders = mutableMapOf<String, String>()
             headers.forEach { entry ->
                 notNullHeaders[entry.key] = entry.value
             }
-            (dataSourceFactory as DefaultHttpDataSource.Factory).setDefaultRequestProperties(
-                notNullHeaders
-            )
+            factory.setDefaultRequestProperties(notNullHeaders)
         }
-        return dataSourceFactory
+        return factory
     }
 
     @JvmStatic

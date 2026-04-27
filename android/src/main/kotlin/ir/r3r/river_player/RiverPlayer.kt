@@ -137,6 +137,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.common.util.Util
 
 import androidx.media3.common.VideoSize
+import androidx.media3.exoplayer.upstream.DefaultBandwidthMeter
 
 import java.io.File
 import java.lang.Exception
@@ -181,9 +182,19 @@ internal class RiverPlayer(
             this.customDefaultLoadControl.bufferForPlaybackAfterRebufferMs
         )
         loadControl = loadBuilder.build()
+        trackSelector.setParameters(
+            trackSelector.buildUponParameters()
+                .setTunnelingEnabled(true)
+                .build()
+        )
+        val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
+            .setInitialBitrateEstimate(5_000_000L)
+            .build()
         exoPlayer = ExoPlayer.Builder(context)
             .setTrackSelector(trackSelector)
             .setLoadControl(loadControl)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setBandwidthMeter(bandwidthMeter)
             .build()
         workManager = WorkManager.getInstance(context)
         workerObserverMap = HashMap()
