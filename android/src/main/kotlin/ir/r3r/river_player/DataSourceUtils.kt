@@ -14,6 +14,8 @@ internal object DataSourceUtils {
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
         .readTimeout(TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     @JvmStatic
@@ -35,7 +37,6 @@ internal object DataSourceUtils {
     ): DataSource.Factory {
         val factory = OkHttpDataSource.Factory(okHttpClient)
             .setUserAgent(userAgent)
-            .setAllowCrossProtocolRedirects(true)
         if (headers != null) {
             val notNullHeaders = mutableMapOf<String, String>()
             headers.forEach { entry ->
