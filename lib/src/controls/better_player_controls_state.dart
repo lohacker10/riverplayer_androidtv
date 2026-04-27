@@ -486,6 +486,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
     showModalBottomSheet<void>(
       backgroundColor: Colors.transparent,
       context: context,
+      isScrollControlled: true,
       useRootNavigator:
           betterPlayerController?.betterPlayerConfiguration.useRootNavigator ??
               false,
