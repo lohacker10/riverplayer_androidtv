@@ -182,11 +182,6 @@ internal class RiverPlayer(
             this.customDefaultLoadControl.bufferForPlaybackAfterRebufferMs
         )
         loadControl = loadBuilder.build()
-        trackSelector.setParameters(
-            trackSelector.buildUponParameters()
-                .setTunnelingEnabled(true)
-                .build()
-        )
         val bandwidthMeter = DefaultBandwidthMeter.Builder(context)
             .setInitialBitrateEstimate(5_000_000L)
             .build()
