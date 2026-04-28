@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 class BetterPlayerMaterialClickableWidget extends StatelessWidget {
   final Widget child;
   final void Function() onTap;
+  final Color? focusColor;
 
   const BetterPlayerMaterialClickableWidget({
     Key? key,
     required this.onTap,
     required this.child,
+    this.focusColor,
   }) : super(key: key);
 
   @override
@@ -21,8 +23,8 @@ class BetterPlayerMaterialClickableWidget extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        focusColor: focusColor ?? Colors.grey[300],
         child: child,
-        focusColor: Colors.grey[300],
       ),
     );
   }

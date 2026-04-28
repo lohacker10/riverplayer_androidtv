@@ -120,6 +120,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
       IconData icon, String name, void Function() onTap) {
     return BetterPlayerMaterialClickableWidget(
       onTap: onTap,
+      focusColor: betterPlayerControlsConfiguration.overflowMenuFocusColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
         child: Row(
@@ -162,6 +163,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
         Navigator.of(context).pop();
         betterPlayerController!.setSpeed(value);
       },
+      focusColor: betterPlayerControlsConfiguration.overflowMenuFocusColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(
@@ -239,6 +241,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
         Navigator.of(context).pop();
         betterPlayerController!.setupSubtitleSource(subtitlesSource);
       },
+      focusColor: betterPlayerControlsConfiguration.overflowMenuFocusColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(
@@ -322,6 +325,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
         Navigator.of(context).pop();
         betterPlayerController!.setTrack(track);
       },
+      focusColor: betterPlayerControlsConfiguration.overflowMenuFocusColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(
@@ -353,6 +357,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
         Navigator.of(context).pop();
         betterPlayerController!.setResolution(url);
       },
+      focusColor: betterPlayerControlsConfiguration.overflowMenuFocusColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(
@@ -412,6 +417,7 @@ abstract class BetterPlayerControlsState<T extends StatefulWidget>
         Navigator.of(context).pop();
         betterPlayerController!.setAudioTrack(audioTrack);
       },
+      focusColor: betterPlayerControlsConfiguration.overflowMenuFocusColor,
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
         child: Row(

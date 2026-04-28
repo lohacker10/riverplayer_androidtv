@@ -161,6 +161,9 @@ class BetterPlayerControlsConfiguration {
   ///Color of text in bottom modal sheet used for overflow menu items.
   final Color overflowModalTextColor;
 
+  ///Focus highlight color for overflow menu items (remote/keyboard navigation).
+  final Color overflowMenuFocusColor;
+
   const BetterPlayerControlsConfiguration({
     this.controlBarColor = Colors.black87,
     this.textColor = Colors.white,
@@ -213,6 +216,7 @@ class BetterPlayerControlsConfiguration {
     this.backgroundColor = Colors.black,
     this.overflowModalColor = Colors.white,
     this.overflowModalTextColor = Colors.black,
+    this.overflowMenuFocusColor = Colors.black12,
   });
 
   factory BetterPlayerControlsConfiguration.white() {
