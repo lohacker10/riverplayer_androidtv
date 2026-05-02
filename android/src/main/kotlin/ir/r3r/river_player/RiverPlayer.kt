@@ -645,6 +645,7 @@ internal class RiverPlayer(
         val parametersBuilder = trackSelector.buildUponParameters()
         if (width != 0 && height != 0) {
             parametersBuilder.setMaxVideoSize(width, height)
+            parametersBuilder.setMinVideoSize(width, height)
         }
         if (bitrate != 0) {
             parametersBuilder.setMaxVideoBitrate(bitrate)
