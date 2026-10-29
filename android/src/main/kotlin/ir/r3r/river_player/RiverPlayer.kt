@@ -781,8 +781,12 @@ internal class RiverPlayer(
                     for (groupIndex in 0 until trackGroupArray.length) {
                         val group = trackGroupArray[groupIndex]
                         for (groupElementIndex in 0 until group.length) {
-                            val label = group.getFormat(groupElementIndex).label
-                            if (name == label && index == groupIndex) {
+                            val format = group.getFormat(groupElementIndex)
+                            val label = format.label
+                            val language = format.language
+                            val sameLanguage = language != null &&
+                                Util.normalizeLanguageCode(name) == Util.normalizeLanguageCode(language)
+                            if ((name == label || sameLanguage) && index == groupIndex) {
                                 setAudioTrack(rendererIndex, groupIndex, groupElementIndex)
                                 return
                             }
