@@ -16,7 +16,15 @@ import ir.r3r.river_player.DataSourceUtils.getUserAgent
 import ir.r3r.river_player.DataSourceUtils.isHTTP
 import ir.r3r.river_player.DataSourceUtils.getDataSourceFactory
 import io.flutter.plugin.common.EventChannel
+import io.flutter.view.TextureRegistry.TextureEntry
+import io.flutter.view.TextureRegistry.SurfaceProducer
 import io.flutter.view.TextureRegistry.SurfaceTextureEntry
+import androidx.media3.common.Format
+import androidx.media3.exoplayer.DecoderCounters
+import androidx.media3.exoplayer.DecoderReuseEvaluation
+import androidx.media3.exoplayer.analytics.AnalyticsListener
+import android.hardware.display.DisplayManager
+import android.view.Display
 import io.flutter.plugin.common.MethodChannel
 
 // import com.google.android.exoplayer2.trackselection.DefaultTrackSelector
@@ -149,7 +157,7 @@ import kotlin.math.min
 internal class RiverPlayer(
     context: Context,
     private val eventChannel: EventChannel,
-    private val textureEntry: SurfaceTextureEntry,
+    private val textureEntry: TextureEntry,
     customDefaultLoadControl: CustomDefaultLoadControl?,
     result: MethodChannel.Result
 ) {
@@ -193,6 +201,40 @@ internal class RiverPlayer(
             .build()
         workManager = WorkManager.getInstance(context)
         workerObserverMap = HashMap()
+        exoPlayer.addAnalyticsListener(object : AnalyticsListener {
+            override fun onVideoInputFormatChanged(
+                eventTime: AnalyticsListener.EventTime,
+                format: Format,
+                decoderReuseEvaluation: DecoderReuseEvaluation?
+            ) {
+                val display = (context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager)
+                    .getDisplay(Display.DEFAULT_DISPLAY)
+                Log.i("RiverPlayerPerf", "video=${format.width}x${format.height} fps=${format.frameRate} " +
+                    "mime=${format.sampleMimeType} displayHz=${display?.refreshRate} " +
+                    "surface=${textureEntry.javaClass.simpleName}")
+            }
+
+            override fun onDroppedVideoFrames(
+                eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long
+            ) {
+                Log.w("RiverPlayerPerf", "dropped=$droppedFrames elapsedMs=$elapsedMs")
+            }
+
+            override fun onVideoDisabled(
+                eventTime: AnalyticsListener.EventTime, counters: DecoderCounters
+            ) {
+                Log.i("RiverPlayerPerf", "rendered=${counters.renderedOutputBufferCount} " +
+                    "dropped=${counters.droppedBufferCount} " +
+                    "maxConsecutiveDropped=${counters.maxConsecutiveDroppedBufferCount}")
+            }
+
+            override fun onVideoDecoderInitialized(
+                eventTime: AnalyticsListener.EventTime, decoderName: String,
+                initializedTimestampMs: Long, initializationDurationMs: Long
+            ) {
+                Log.i("RiverPlayerPerf", "decoder=$decoderName initMs=$initializationDurationMs")
+            }
+        })
         setupVideoPlayer(eventChannel, textureEntry, result)
     }
 
@@ -517,7 +559,7 @@ internal class RiverPlayer(
     }
 
     private fun setupVideoPlayer(
-        eventChannel: EventChannel, textureEntry: SurfaceTextureEntry, result: MethodChannel.Result
+        eventChannel: EventChannel, textureEntry: TextureEntry, result: MethodChannel.Result
     ) {
         eventChannel.setStreamHandler(
             object : EventChannel.StreamHandler {
@@ -529,7 +571,22 @@ internal class RiverPlayer(
                     eventSink.setDelegate(null)
                 }
             })
-        surface = Surface(textureEntry.surfaceTexture())
+        if (textureEntry is SurfaceProducer) {
+            textureEntry.setCallback(object : SurfaceProducer.Callback {
+                override fun onSurfaceAvailable() {
+                    surface = textureEntry.surface
+                    exoPlayer?.setVideoSurface(surface)
+                }
+
+                override fun onSurfaceCleanup() {
+                    exoPlayer?.clearVideoSurface()
+                    surface = null
+                }
+            })
+            surface = textureEntry.surface
+        } else {
+            surface = Surface((textureEntry as SurfaceTextureEntry).surfaceTexture())
+        }
         exoPlayer?.setVideoSurface(surface)
         setAudioAttributes(exoPlayer, true)
         exoPlayer?.addListener(object : Player.Listener {
@@ -574,6 +631,11 @@ internal class RiverPlayer(
             ) {
                 val width = videoSize.width
                 val height = videoSize.height
+                if (textureEntry is SurfaceProducer && width > 0 && height > 0) {
+                    textureEntry.setSize(width, height)
+                    surface = textureEntry.surface
+                    exoPlayer?.setVideoSurface(surface)
+                }
                 Log.d("RiverPlayer", "Video size changed: ${width}x${height}")
         
                 val event: MutableMap<String, Any> = HashMap()
@@ -858,10 +920,13 @@ internal class RiverPlayer(
         if (isInitialized) {
             exoPlayer?.stop()
         }
-        textureEntry.release()
+        if (textureEntry is SurfaceProducer) textureEntry.setCallback(null)
         eventChannel.setStreamHandler(null)
-        surface?.release()
         exoPlayer?.release()
+        // SurfaceProducer owns its Surface; release the player before the producer.
+        if (textureEntry is SurfaceTextureEntry) surface?.release()
+        textureEntry.release()
+        surface = null
     }
 
     override fun equals(other: Any?): Boolean {

@@ -99,7 +99,13 @@ class RiverPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
         when (call.method) {
             INIT_METHOD -> disposeAllPlayers()
             CREATE_METHOD -> {
-                val handle = flutterState!!.textureRegistry!!.createSurfaceTexture()
+                // shortcut: TV streams are assumed unrotated; add rotation correction before supporting rotated video.
+                val handle = if (flutterState!!.applicationContext.packageManager
+                        .hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+                    flutterState!!.textureRegistry!!.createSurfaceProducer()
+                } else {
+                    flutterState!!.textureRegistry!!.createSurfaceTexture()
+                }
                 val eventChannel = EventChannel(
                     flutterState?.binaryMessenger, EVENTS_CHANNEL + handle.id()
                 )
