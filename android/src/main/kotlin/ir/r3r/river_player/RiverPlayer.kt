@@ -157,7 +157,8 @@ import kotlin.math.min
 internal class RiverPlayer(
     context: Context,
     private val eventChannel: EventChannel,
-    private val textureEntry: TextureEntry,
+    private val textureEntry: TextureEntry?,
+    private val playerId: Long,
     customDefaultLoadControl: CustomDefaultLoadControl?,
     result: MethodChannel.Result
 ) {
@@ -166,6 +167,8 @@ internal class RiverPlayer(
     private val trackSelector: DefaultTrackSelector = DefaultTrackSelector(context)
     private val loadControl: LoadControl
     private var isInitialized = false
+    private var isDisposed = false
+    val usesSurfaceView: Boolean get() = textureEntry == null
     private var surface: Surface? = null
     private var key: String? = null
     private var playerNotificationManager: PlayerNotificationManager? = null
@@ -211,7 +214,7 @@ internal class RiverPlayer(
                     .getDisplay(Display.DEFAULT_DISPLAY)
                 Log.i("RiverPlayerPerf", "video=${format.width}x${format.height} fps=${format.frameRate} " +
                     "mime=${format.sampleMimeType} displayHz=${display?.refreshRate} " +
-                    "surface=${textureEntry.javaClass.simpleName}")
+                    "surface=${textureEntry?.javaClass?.simpleName ?: "SurfaceView"}")
             }
 
             override fun onDroppedVideoFrames(
@@ -559,7 +562,7 @@ internal class RiverPlayer(
     }
 
     private fun setupVideoPlayer(
-        eventChannel: EventChannel, textureEntry: TextureEntry, result: MethodChannel.Result
+        eventChannel: EventChannel, textureEntry: TextureEntry?, result: MethodChannel.Result
     ) {
         eventChannel.setStreamHandler(
             object : EventChannel.StreamHandler {
@@ -584,8 +587,8 @@ internal class RiverPlayer(
                 }
             })
             surface = textureEntry.surface
-        } else {
-            surface = Surface((textureEntry as SurfaceTextureEntry).surfaceTexture())
+        } else if (textureEntry is SurfaceTextureEntry) {
+            surface = Surface(textureEntry.surfaceTexture())
         }
         exoPlayer?.setVideoSurface(surface)
         setAudioAttributes(exoPlayer, true)
@@ -646,7 +649,8 @@ internal class RiverPlayer(
             }
         })
         val reply: MutableMap<String, Any> = HashMap()
-        reply["textureId"] = textureEntry.id()
+        reply["textureId"] = playerId
+        reply["useAndroidSurfaceView"] = usesSurfaceView
         result.success(reply)
     }
 
@@ -914,7 +918,26 @@ internal class RiverPlayer(
         setAudioAttributes(exoPlayer, mixWithOthers)
     }
 
+    fun attachSurface(nativeSurface: Surface) {
+        if (isDisposed || !usesSurfaceView || !nativeSurface.isValid) return
+        surface = nativeSurface
+        exoPlayer?.setVideoSurface(nativeSurface)
+        // Android 9 may not render the first paused frame after replacing a surface.
+        if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P && exoPlayer?.playWhenReady == false) {
+            val position = exoPlayer.currentPosition
+            exoPlayer.seekTo(if (position == 0L) 1L else position)
+        }
+    }
+
+    fun detachSurface(nativeSurface: Surface) {
+        if (isDisposed || surface !== nativeSurface) return
+        exoPlayer?.clearVideoSurface(nativeSurface)
+        surface = null
+    }
+
     fun dispose() {
+        if (isDisposed) return
+        isDisposed = true
         disposeMediaSession()
         disposeRemoteNotifications()
         if (isInitialized) {
@@ -925,7 +948,7 @@ internal class RiverPlayer(
         exoPlayer?.release()
         // SurfaceProducer owns its Surface; release the player before the producer.
         if (textureEntry is SurfaceTextureEntry) surface?.release()
-        textureEntry.release()
+        textureEntry?.release()
         surface = null
     }
 

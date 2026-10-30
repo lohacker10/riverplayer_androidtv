@@ -248,8 +248,9 @@ class BetterPlayerController {
     ///Build videoPlayerController if null
     if (videoPlayerController == null) {
       videoPlayerController = VideoPlayerController(
-          bufferingConfiguration:
-              betterPlayerDataSource.bufferingConfiguration);
+          bufferingConfiguration: betterPlayerDataSource.bufferingConfiguration,
+          useAndroidSurfaceView:
+              betterPlayerConfiguration.useAndroidSurfaceView);
       videoPlayerController?.addListener(_onVideoPlayerChanged);
     }
 

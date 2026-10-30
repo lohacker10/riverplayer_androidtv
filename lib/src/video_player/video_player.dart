@@ -7,6 +7,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:river_player/src/configuration/better_player_buffering_configuration.dart';
 import 'package:river_player/src/video_player/video_player_platform_interface.dart';
@@ -176,10 +177,12 @@ class VideoPlayerValue {
 /// After [dispose] all further calls are ignored.
 class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   final BetterPlayerBufferingConfiguration bufferingConfiguration;
+  final bool useAndroidSurfaceView;
 
   /// Constructs a [VideoPlayerController] and creates video controller on platform side.
   VideoPlayerController({
     this.bufferingConfiguration = const BetterPlayerBufferingConfiguration(),
+    this.useAndroidSurfaceView = false,
     bool autoCreate = true,
   }) : super(VideoPlayerValue(duration: null)) {
     if (autoCreate) {
@@ -209,7 +212,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   Future<void> _create() async {
     _textureId = await _videoPlayerPlatform.create(
       bufferingConfiguration: bufferingConfiguration,
+      useAndroidSurfaceView: useAndroidSurfaceView,
     );
+    // A native view must mount before preparation can require a decoder surface.
+    if (useAndroidSurfaceView &&
+        defaultTargetPlatform == TargetPlatform.android) {
+      notifyListeners();
+    }
     _creatingCompleter.complete(null);
 
     unawaited(_applyLooping());

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:river_player/river_player.dart';
 import 'package:river_player/src/configuration/better_player_controller_event.dart';
 import 'package:river_player/src/controls/better_player_cupertino_controls.dart';
@@ -298,8 +299,24 @@ class _BetterPlayerVideoFitWidgetState
 
   @override
   Widget build(BuildContext context) {
-    if (_initialized && _started) {
-      return Center(
+    final nativeSurface = defaultTargetPlatform == TargetPlatform.android &&
+        widget.betterPlayerController.betterPlayerConfiguration
+            .useAndroidSurfaceView &&
+        controller != null;
+    final ready = _initialized && _started;
+    if (!ready && !nativeSurface) return const SizedBox();
+
+    final Widget video;
+    if (nativeSurface && widget.boxFit == BoxFit.contain) {
+      // Size the native view directly instead of scaling a video-sized Android view.
+      video = Center(
+        child: AspectRatio(
+          aspectRatio: controller!.value.aspectRatio,
+          child: VideoPlayer(controller),
+        ),
+      );
+    } else {
+      video = Center(
         child: ClipRect(
           child: Container(
             width: double.infinity,
@@ -307,17 +324,21 @@ class _BetterPlayerVideoFitWidgetState
             child: FittedBox(
               fit: widget.boxFit,
               child: SizedBox(
-                width: controller!.value.size?.width ?? 0,
-                height: controller!.value.size?.height ?? 0,
+                width: controller?.value.size?.width ?? 16,
+                height: controller?.value.size?.height ?? 9,
                 child: VideoPlayer(controller),
               ),
             ),
           ),
         ),
       );
-    } else {
-      return const SizedBox();
     }
+    if (!nativeSurface) return video;
+    // Mount the surface during loading, but keep its first frame behind the placeholder.
+    return Stack(
+      fit: StackFit.expand,
+      children: [video, if (!ready) const ColoredBox(color: Colors.black)],
+    );
   }
 
   @override

@@ -4,6 +4,8 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:river_player/src/configuration/better_player_buffering_configuration.dart';
@@ -15,13 +17,16 @@ const MethodChannel _channel = MethodChannel('better_player_channel');
 
 /// An implementation of [VideoPlayerPlatform] that uses method channels.
 class MethodChannelVideoPlayer extends VideoPlayerPlatform {
+  final Set<int> _surfaceViewPlayers = <int>{};
   @override
   Future<void> init() {
+    _surfaceViewPlayers.clear();
     return _channel.invokeMethod<void>('init');
   }
 
   @override
   Future<void> dispose(int? textureId) {
+    _surfaceViewPlayers.remove(textureId);
     return _channel.invokeMethod<void>(
       'dispose',
       <String, dynamic>{'textureId': textureId},
@@ -31,27 +36,27 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
   @override
   Future<int?> create({
     BetterPlayerBufferingConfiguration? bufferingConfiguration,
+    bool useAndroidSurfaceView = false,
   }) async {
-    late final Map<String, dynamic>? response;
-    if (bufferingConfiguration == null) {
-      response = await _channel.invokeMapMethod<String, dynamic>('create');
-    } else {
-      final responseLinkedHashMap = await _channel.invokeMethod<Map?>(
-        'create',
-        <String, dynamic>{
-          'minBufferMs': bufferingConfiguration.minBufferMs,
-          'maxBufferMs': bufferingConfiguration.maxBufferMs,
-          'bufferForPlaybackMs': bufferingConfiguration.bufferForPlaybackMs,
-          'bufferForPlaybackAfterRebufferMs':
-              bufferingConfiguration.bufferForPlaybackAfterRebufferMs,
-        },
-      );
-
-      response = responseLinkedHashMap != null
-          ? Map<String, dynamic>.from(responseLinkedHashMap)
-          : null;
+    final arguments = <String, dynamic>{
+      if (useAndroidSurfaceView) 'useAndroidSurfaceView': true,
+      if (bufferingConfiguration != null) ...{
+        'minBufferMs': bufferingConfiguration.minBufferMs,
+        'maxBufferMs': bufferingConfiguration.maxBufferMs,
+        'bufferForPlaybackMs': bufferingConfiguration.bufferForPlaybackMs,
+        'bufferForPlaybackAfterRebufferMs':
+            bufferingConfiguration.bufferForPlaybackAfterRebufferMs,
+      },
+    };
+    final response = await _channel.invokeMapMethod<String, dynamic>(
+      'create',
+      arguments.isEmpty ? null : arguments,
+    );
+    final id = response?['textureId'] as int?;
+    if (id != null && response?['useAndroidSurfaceView'] == true) {
+      _surfaceViewPlayers.add(id);
     }
-    return response?['textureId'] as int?;
+    return id;
   }
 
   @override
@@ -453,6 +458,36 @@ class MethodChannelVideoPlayer extends VideoPlayerPlatform {
         viewType: 'com.jhomlala/better_player',
         creationParamsCodec: const StandardMessageCodec(),
         creationParams: {'textureId': textureId!},
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.android &&
+        _surfaceViewPlayers.contains(textureId)) {
+      const viewType = 'river_player/surface_view';
+      return ExcludeFocus(
+        child: IgnorePointer(
+          child: PlatformViewLink(
+            key: ValueKey(textureId),
+            viewType: viewType,
+            surfaceFactory: (context, controller) => AndroidViewSurface(
+              controller: controller as AndroidViewController,
+              gestureRecognizers: const <Factory<
+                  OneSequenceGestureRecognizer>>{},
+              hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+            ),
+            onCreatePlatformView: (params) {
+              // Force native composition so video is not copied into a Flutter texture.
+              return PlatformViewsService.initExpensiveAndroidView(
+                id: params.id,
+                viewType: viewType,
+                layoutDirection: TextDirection.ltr,
+                creationParams: <String, dynamic>{'textureId': textureId},
+                creationParamsCodec: const StandardMessageCodec(),
+                onFocus: () => params.onFocusChanged(true),
+              )
+                ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+                ..create();
+            },
+          ),
+        ),
       );
     } else {
       return Texture(textureId: textureId!);

@@ -75,6 +75,10 @@ class BetterPlayerConfiguration {
   ///values here: https://api.flutter.dev/flutter/painting/BoxFit-class.html
   final BoxFit fit;
 
+  /// Render Android video in a native SurfaceView; Flutter controls stay on top.
+  /// Ignored on iOS. Keep disabled for scrolling previews and transformed video.
+  final bool useAndroidSurfaceView;
+
   ///Defines rotation of the video in degrees. Default value is 0. Can be 0, 90, 180, 270.
   ///Angle will rotate only video box, controls will be in the same place.
   final double rotation;
@@ -147,6 +151,7 @@ class BetterPlayerConfiguration {
     this.subtitlesConfiguration = const BetterPlayerSubtitlesConfiguration(),
     this.controlsConfiguration = const BetterPlayerControlsConfiguration(),
     this.fit = BoxFit.fill,
+    this.useAndroidSurfaceView = false,
     this.rotation = 0,
     this.playerVisibilityChangedBehavior,
     this.translations,
@@ -180,6 +185,7 @@ class BetterPlayerConfiguration {
     BetterPlayerSubtitlesConfiguration? subtitlesConfiguration,
     BetterPlayerControlsConfiguration? controlsConfiguration,
     BoxFit? fit,
+    bool? useAndroidSurfaceView,
     double? rotation,
     Function(double visibilityFraction)? playerVisibilityChangedBehavior,
     List<BetterPlayerTranslations>? translations,
@@ -217,6 +223,8 @@ class BetterPlayerConfiguration {
       controlsConfiguration:
           controlsConfiguration ?? this.controlsConfiguration,
       fit: fit ?? this.fit,
+      useAndroidSurfaceView:
+          useAndroidSurfaceView ?? this.useAndroidSurfaceView,
       rotation: rotation ?? this.rotation,
       playerVisibilityChangedBehavior: playerVisibilityChangedBehavior ??
           this.playerVisibilityChangedBehavior,

@@ -32,6 +32,8 @@ import java.util.HashMap
  */
 class RiverPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     private val videoPlayers = LongSparseArray<RiverPlayer>()
+    // Native view players have no texture; negative IDs avoid textures and the -1 sentinel.
+    private var nextSurfaceViewPlayerId = -2L
     private val dataSources = LongSparseArray<Map<String, Any?>>()
     private var flutterState: FlutterState? = null
     private var currentNotificationTextureId: Long = -1
@@ -40,6 +42,9 @@ class RiverPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
     private var pipHandler: Handler? = null
     private var pipRunnable: Runnable? = null
     override fun onAttachedToEngine(binding: FlutterPluginBinding) {
+        binding.platformViewRegistry.registerViewFactory(
+            "river_player/surface_view", RiverPlayerViewFactory(videoPlayers)
+        )
         val loader = FlutterLoader()
         flutterState = FlutterState(
             binding.applicationContext,
@@ -100,14 +105,17 @@ class RiverPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
             INIT_METHOD -> disposeAllPlayers()
             CREATE_METHOD -> {
                 // shortcut: TV streams are assumed unrotated; add rotation correction before supporting rotated video.
-                val handle = if (flutterState!!.applicationContext.packageManager
+                val handle = if (call.argument<Boolean>("useAndroidSurfaceView") == true) {
+                    null
+                } else if (flutterState!!.applicationContext.packageManager
                         .hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
                     flutterState!!.textureRegistry!!.createSurfaceProducer()
                 } else {
                     flutterState!!.textureRegistry!!.createSurfaceTexture()
                 }
+                val playerId = handle?.id() ?: nextSurfaceViewPlayerId--
                 val eventChannel = EventChannel(
-                    flutterState?.binaryMessenger, EVENTS_CHANNEL + handle.id()
+                    flutterState?.binaryMessenger, EVENTS_CHANNEL + playerId
                 )
                 var customDefaultLoadControl: CustomDefaultLoadControl? = null
                 if (call.hasArgument(MIN_BUFFER_MS) && call.hasArgument(MAX_BUFFER_MS) &&
@@ -122,10 +130,10 @@ class RiverPlayerPlugin : FlutterPlugin, ActivityAware, MethodCallHandler {
                     )
                 }
                 val player = RiverPlayer(
-                    flutterState?.applicationContext!!, eventChannel, handle,
+                    flutterState?.applicationContext!!, eventChannel, handle, playerId,
                     customDefaultLoadControl, result
                 )
-                videoPlayers.put(handle.id(), player)
+                videoPlayers.put(playerId, player)
             }
             PRE_CACHE_METHOD -> preCache(call, result)
             STOP_PRE_CACHE_METHOD -> stopPreCache(call, result)
